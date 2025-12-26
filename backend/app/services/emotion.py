@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from transformers import WhisperModel, WhisperFeatureExtractor
 import io
 import soundfile as sf
+import numpy as np
 import logging
 from typing import Dict
 from app.config import settings
@@ -132,7 +133,16 @@ class EmotionService:
         try:
             # Convert bytes to waveform
             data, sr = sf.read(io.BytesIO(audio_bytes), dtype="float32")
-            waveform = torch.from_numpy(data).T
+            
+            # Handle mono (1-D) or stereo (2-D) audio
+            if data.ndim == 1:
+                # Mono: add channel dimension
+                data = data[np.newaxis, :]
+            elif data.ndim == 2 and data.shape[0] > data.shape[1]:
+                # Stereo but samples are in rows: transpose to (channels, samples)
+                data = data.T
+            
+            waveform = torch.from_numpy(data)
 
             # Extract features
             input_features = self.feature_extractor(
