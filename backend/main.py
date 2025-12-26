@@ -44,6 +44,7 @@ async def detect_emotion(file: UploadFile = File(...)):
     result = _infer_emotion_from_audio(audio_bytes)
     return result
 
+
 @app.post("/chat")
 async def chat(file: UploadFile = File(...)):
     audio_bytes = await file.read()
