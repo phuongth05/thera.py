@@ -1,78 +1,74 @@
-import torch
-import io
-import soundfile as sf
-from fastapi import FastAPI, UploadFile, File
-from pydantic import BaseModel
+"""
+Main entry point for the FastAPI application.
+"""
+
+import logging
+import uvicorn
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from typing import Optional
+from app.config import settings
+from app.api import router
 
+# Configure logging
+logging.basicConfig(
+    level=settings.LOG_LEVEL,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 
-from emotion_model import EmotionModel
-from whisper_stt import speech_to_text
-from chatbot import chat_response
-from tts import text_to_speech
+# Create FastAPI app
+app = FastAPI(
+    title=settings.API_TITLE,
+    version=settings.API_VERSION,
+    description="Therapist Chat API with voice support",
+)
 
-app = FastAPI()
-
-app.mount("/audio", StaticFiles(directory="audio"), name="audio")
-
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-emotion_model = EmotionModel("model/whisper.pt")
+# Mount static audio directory
+app.mount("/audio", StaticFiles(directory=settings.AUDIO_DIR), name="audio")
+
+# Include API routes
+app.include_router(router)
 
 
-class ChatTextPayload(BaseModel):
-    text: str
-    emotion: Optional[str] = None
-
-
-def _infer_emotion_from_audio(audio_bytes: bytes):
-    """Convert raw bytes to waveform and run the emotion model."""
-    data, sr = sf.read(io.BytesIO(audio_bytes), dtype="float32")
-    waveform = torch.from_numpy(data).T
-    return emotion_model.predict(waveform, sr)
-
-@app.post("/emotion")
-async def detect_emotion(file: UploadFile = File(...)):
-    audio_bytes = await file.read()
-    result = _infer_emotion_from_audio(audio_bytes)
-    return result
-
-
-@app.post("/chat")
-async def chat(file: UploadFile = File(...)):
-    audio_bytes = await file.read()
-
-    text = speech_to_text(audio_bytes)
-    emotion_result = _infer_emotion_from_audio(audio_bytes)
-    emotion = emotion_result["emotion"]
-
-    reply_text = chat_response(text, emotion)
-    audio_path = text_to_speech(reply_text, emotion)
-
+# Root endpoint
+@app.get("/")
+async def root():
+    """Root endpoint - returns API info."""
     return {
-        "user_text": text,
-        "reply_text": reply_text,
-        "audio_url": "/" + audio_path.replace("\\", "/"),
-        "emotion": emotion,
-        "confidence": emotion_result.get("confidence")
+        "message": "Welcome to Therapist Chat API",
+        "version": settings.API_VERSION,
+        "docs": "/docs",
     }
 
 
-@app.post("/chat-text")
-async def chat_text(payload: ChatTextPayload):
-    """Handle text-based chat; TTS is expected to be handled client-side."""
-    emotion = payload.emotion or "neutral"
-    reply_text = chat_response(payload.text, emotion)
+@app.on_event("startup")
+async def startup_event():
+    """Run on app startup."""
+    logger.info("Starting Therapist Chat API...")
+    logger.info(f"Using device: {settings.EMOTION_MODEL_PATH}")
 
-    return {
-        "user_text": payload.text,
-        "reply_text": reply_text,
-        "emotion": emotion,
-    }
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Run on app shutdown."""
+    logger.info("Shutting down Therapist Chat API...")
+
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        log_level=settings.LOG_LEVEL.lower(),
+    )
