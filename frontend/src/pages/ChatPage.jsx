@@ -1,14 +1,18 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Header, ChatBox, Controls } from '../components';
-import { useAudioRecorder, useSpeechRecognition, useSpeechSynthesis } from '../hooks';
-import { detectEmotion, chatWithText } from '../api';
+import React, { useState, useRef, useEffect } from "react";
+import { Header, ChatBox, Controls } from "../components";
+import {
+  useAudioRecorder,
+  useSpeechRecognition,
+  useSpeechSynthesis,
+} from "../hooks";
+import { chatWithText } from "../api";
 
 export function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [currentEmotion, setCurrentEmotion] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
-  const [micError, setMicError] = useState('');
+  const [micError, setMicError] = useState("");
 
   const messagesEndRef = useRef(null);
 
@@ -18,12 +22,12 @@ export function ChatPage() {
 
   // Auto scroll
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleStartRecording = async () => {
     try {
-      setMicError('');
+      setMicError("");
       speechRecognition.reset();
       await audioRecorder.startRecording();
       speechRecognition.start();
@@ -41,7 +45,7 @@ export function ChatPage() {
   };
 
   const handleSend = async () => {
-    // 1️⃣ Nếu đang ghi âm → dừng trước
+    // Nếu đang ghi âm → dừng trước
     let currentBlob = audioBlob;
     if (audioRecorder.isRecording) {
       speechRecognition.stop();
@@ -50,66 +54,65 @@ export function ChatPage() {
       await new Promise((res) => setTimeout(res, 300));
     }
 
-    const finalText = speechRecognition.getFinalTranscript()?.trim() || '';
+    const finalText = speechRecognition.getFinalTranscript()?.trim() || "";
 
-    // 2️⃣ Validate
+    // Validate
     if (!finalText) {
-      setMicError('Không nhận được lời nói. Vui lòng thử lại.');
+      setMicError("Không nhận được lời nói. Vui lòng thử lại.");
       return;
     }
 
     if (!currentBlob) {
-      setMicError('Vui lòng ghi âm trước khi gửi.');
+      setMicError("Vui lòng ghi âm trước khi gửi.");
       return;
     }
 
     setIsProcessing(true);
-    setMicError('');
+    setMicError("");
 
     try {
-      // 3️⃣ Detect emotion
-      const emotionResult = await detectEmotion(currentBlob);
-      setCurrentEmotion(emotionResult.emotion);
+      // Get chat response with emotion detection from backend
+      const chatResult = await chatWithText(finalText, currentBlob);
 
-      // 4️⃣ Get chat response
-      const chatResult = await chatWithText(finalText, emotionResult.emotion);
+      // Backend returns: { reply_text, emotion, confidence (optional) } --> điều chỉnh cho phù hợp
+      setCurrentEmotion(chatResult.emotion);
 
-      const timestamp = new Date().toLocaleTimeString('vi-VN');
+      const timestamp = new Date().toLocaleTimeString("vi-VN");
 
-      // 5️⃣ Add messages
+      // Add messages
       const userMessage = {
         id: Date.now(),
-        type: 'user',
+        type: "user",
         text: finalText,
-        emotion: emotionResult.emotion,
+        emotion: chatResult.emotion,
         timestamp,
       };
 
       const botMessage = {
         id: Date.now() + 1,
-        type: 'bot',
+        type: "bot",
         text: chatResult.reply_text,
         timestamp,
       };
 
       setMessages((prev) => [...prev, userMessage, botMessage]);
 
-      // 6️⃣ Speak bot response
+      // Speak bot response
       speechSynthesis.speak(chatResult.reply_text);
 
-      // 7️⃣ Reset
+      // Reset
       setAudioBlob(null);
       speechRecognition.reset();
     } catch (error) {
       console.error(error);
-      setMicError('Lỗi kết nối backend: ' + error.message);
+      setMicError("Lỗi kết nối backend: " + error.message);
     } finally {
       setIsProcessing(false);
     }
   };
 
   const handleClearMessages = () => {
-    if (window.confirm('Bạn có chắc muốn xóa toàn bộ hội thoại?')) {
+    if (window.confirm("Bạn có chắc muốn xóa toàn bộ hội thoại?")) {
       setMessages([]);
       setCurrentEmotion(null);
       setAudioBlob(null);
@@ -120,7 +123,10 @@ export function ChatPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900 text-slate-50 px-4 py-6">
       <div className="max-w-5xl mx-auto space-y-4">
-        <Header currentEmotion={currentEmotion} onClearMessages={handleClearMessages} />
+        <Header
+          currentEmotion={currentEmotion}
+          onClearMessages={handleClearMessages}
+        />
 
         <main className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
           <div className="lg:col-span-2">
@@ -144,7 +150,9 @@ export function ChatPage() {
 
           <aside className="bg-white/5 border border-white/10 rounded-3xl p-4 lg:p-6 shadow-2xl backdrop-blur flex flex-col gap-4">
             <div className="text-sm text-slate-300 space-y-2">
-              <h3 className="font-semibold text-emerald-200">Hướng dẫn sử dụng</h3>
+              <h3 className="font-semibold text-emerald-200">
+                Hướng dẫn sử dụng
+              </h3>
               <ul className="text-xs space-y-2">
                 <li>✓ Nhấn "Nhấn để nói" để bắt đầu ghi âm</li>
                 <li>✓ Nói gì đó bằng tiếng Việt</li>
