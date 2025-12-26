@@ -31,3 +31,17 @@ export async function chatWithAudio(audioBlob) {
 
   return response.json();
 }
+
+export async function chatWithText(text, emotion) {
+  const response = await fetch(`${API_URL}/chat-text`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, emotion }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Lỗi kết nối API chat-text');
+  }
+
+  return response.json();
+}
