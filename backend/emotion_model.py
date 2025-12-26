@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import WhisperModel, WhisperFeatureExtractor
 import numpy as np
+from typing import Dict
 
 
 class WhisperAttentionClassifier(nn.Module):
@@ -50,9 +51,14 @@ class EmotionModel:
         # 1️⃣ Khởi tạo model đúng kiến trúc
         self.model = WhisperAttentionClassifier(num_labels=4).to(self.device)
 
-        # 2️⃣ Load state_dict
+        # 2️⃣ Load state_dict (an toàn với ckpt có prefix như 'module.')
         state_dict = torch.load(model_path, map_location=self.device)
-        self.model.load_state_dict(state_dict)
+        clean_state = self._normalize_keys(state_dict)
+        missing, unexpected = self.model.load_state_dict(clean_state, strict=False)
+        if missing:
+            print(f"[EmotionModel] Missing keys when loading ckpt: {missing}")
+        if unexpected:
+            print(f"[EmotionModel] Unexpected keys when loading ckpt: {unexpected}")
 
         # 3️⃣ Eval mode
         self.model.eval()
@@ -63,6 +69,18 @@ class EmotionModel:
         )
 
         self.labels = ["happy", "neutral", "sad", "angry"]
+
+    @staticmethod
+    def _normalize_keys(state_dict: Dict[str, torch.Tensor]):
+        """Remove common prefixes like 'module.' or 'model.' from fine-tuned checkpoints."""
+        fixed = {}
+        for k, v in state_dict.items():
+            new_k = k
+            for prefix in ("module.", "model."):
+                if new_k.startswith(prefix):
+                    new_k = new_k[len(prefix):]
+            fixed[new_k] = v
+        return fixed
 
     @torch.no_grad()
     def predict(self, audio: np.ndarray, sr: int = 16000):
