@@ -1,24 +1,36 @@
+"""
+Chatbot service using Google Generative AI (Gemini).
+"""
+
+import os
 import google.generativeai as genai
 import logging
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+
 class ChatbotService:
+    """Chatbot service using Gemini LLM."""
+
     def __init__(self):
+        """Initialize Gemini model."""
         self.model = self._init_model()
-        # Lưu session chat riêng biệt (nếu chạy local 1 người dùng)
-        # Nếu chạy server nhiều user, bạn phải quản lý history bên ngoài class này
-        self.chat_session = None 
+        self.chat_session = None
 
     def _init_model(self):
+        """Initialize Gemini model with configuration."""
         api_key = settings.GOOGLE_API_KEY
         if not api_key:
-            raise RuntimeError("Missing GOOGLE_API_KEY")
+            raise RuntimeError(
+                "GOOGLE_API_KEY not found in environment variables. "
+                "Set GOOGLE_API_KEY or GEMINI_API_KEY."
+            )
 
         genai.configure(api_key=api_key)
-        
-        # Cấu hình an toàn (Safety Settings) để tránh bot bị block câu trả lời
+        logger.info(f"Initialized Gemini model: {settings.GEMINI_MODEL}")
+
+        # Safety settings để tránh bị block
         safety_settings = [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
             {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
@@ -28,7 +40,6 @@ class ChatbotService:
 
         return genai.GenerativeModel(
             model_name=settings.GEMINI_MODEL,
-            # System instruction chỉ cài 1 lần ở đây là tốt nhất
             system_instruction=(
                 "Bạn là trợ lý ảo giao tiếp bằng giọng nói. "
                 "1. Trả lời TIẾNG VIỆT, ngắn gọn (dưới 2 câu), súc tích để người dùng nghe kịp. "
@@ -37,44 +48,68 @@ class ChatbotService:
                 "4. Dựa vào ngữ cảnh cảm xúc được cung cấp để điều chỉnh thái độ (vui vẻ, đồng cảm, bình tĩnh...)."
             ),
             generation_config={
-                "temperature": 0.7, # 0.7 giúp câu trả lời sáng tạo nhưng không quá bay bổng
-                "max_output_tokens": 500, # Voice chat cần ngắn gọn
+                "temperature": settings.LLM_TEMPERATURE,
+                "max_output_tokens": settings.LLM_MAX_TOKENS,
             },
-            safety_settings=safety_settings
+            safety_settings=safety_settings,
         )
 
     def _get_chat_session(self):
-        """Khởi tạo session nếu chưa có (Dành cho single user)"""
+        """Initialize session if not exists (for single user context)."""
         if self.chat_session is None:
             self.chat_session = self.model.start_chat(history=[])
         return self.chat_session
 
-    def get_reply(self, user_text: str, emotion: str = "neutral") -> str:
+    def get_reply(self, user_text: str, emotion: str = "neutral", recent_messages: list[dict] | None = None) -> str:
+        """
+        Generate chatbot reply based on user text, emotion, and optional conversation history.
+
+        Args:
+            user_text: User's current message
+            emotion: Detected emotion (used for context)
+            recent_messages: List of recent messages for context (optional, used for DB history)
+
+        Returns:
+            Chatbot's reply
+
+        Raises:
+            RuntimeError: If generation fails
+        """
         try:
+            # Nếu có recent_messages từ DB, dùng nó để rebuild context
+            if recent_messages:
+                # Rebuild lịch sử từ DB
+                history = []
+                for msg in recent_messages:
+                    role = "user" if msg["role"] == "user" else "model"
+                    history.append({"role": role, "parts": [msg["content"]]})
+                
+                # Tạo session mới với history
+                self.chat_session = self.model.start_chat(history=history)
+            
+            # Lấy hoặc tạo session
             chat = self._get_chat_session()
 
-            # Kỹ thuật Prompting: Đưa cảm xúc vào ngoặc vuông để model hiểu đây là meta-data
-            # chứ không phải lời nói của user.
+            # Đưa cảm xúc vào prompt như metadata
             user_prompt = f"[System Note: User's detected emotion is '{emotion}'. Respond accordingly.]\nUser: {user_text}"
 
-            # Dùng send_message thay vì generate_content để Giữ Lịch Sử (Context)
+            # Dùng send_message để giữ lịch sử
             response = chat.send_message(user_prompt)
-            
             reply_text = (response.text or "").strip()
-            
-            # Xử lý trường hợp trả về rỗng
+
             if not reply_text:
+                logger.warning("Empty response from Gemini")
                 return "Xin lỗi, tôi chưa nghe rõ."
 
-            logger.info(f"Bot reply: {reply_text}")
+            logger.info(f"Chat response generated: {len(reply_text)} characters")
             return reply_text
 
         except Exception as e:
             logger.error(f"Chatbot error: {e}")
-            # Reset session nếu lỗi, tránh kẹt lịch sử bị lỗi
-            self.chat_session = None 
-            return "Xin lỗi, hệ thống đang gặp chút sự cố."
+            # Reset session nếu lỗi
+            self.chat_session = None
+            raise RuntimeError(f"Failed to generate chat response: {str(e)}")
 
-# Lưu ý: Nếu dùng Web Server (FastAPI/Flask), không nên dùng singleton chatbot_service 
-# để lưu session như trên. Bạn cần truyền history từ Client lên.
+
+# Singleton instance
 chatbot_service = ChatbotService()
