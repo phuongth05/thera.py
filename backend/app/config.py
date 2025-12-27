@@ -22,7 +22,7 @@ class Settings:
     EMOTION_LABELS: list = ["happy", "neutral", "sad", "angry"]
 
     WHISPER_MODEL: str = "small"
-    GEMINI_MODEL: str = "gemini-3-flash-preview"
+    GEMINI_MODEL: str = "gemini-2.5-flash"
 
     # LLM config
     LLM_TEMPERATURE: float = 0.7

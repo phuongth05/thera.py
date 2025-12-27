@@ -38,7 +38,7 @@ class ChatbotService:
             ),
             generation_config={
                 "temperature": 0.7, # 0.7 giúp câu trả lời sáng tạo nhưng không quá bay bổng
-                "max_output_tokens": 150, # Voice chat cần ngắn gọn
+                "max_output_tokens": 500, # Voice chat cần ngắn gọn
             },
             safety_settings=safety_settings
         )
