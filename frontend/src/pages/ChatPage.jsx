@@ -185,7 +185,15 @@ export function ChatPage() {
               <Controls
                 isRecording={audioRecorder.isRecording}
                 isProcessing={isProcessing}
-                onToggleRecording={handleToggleRecording}
+                audioBlob={audioBlob}
+                onStartRecording={handleStartRecording}
+                onStopRecording={handleStopRecording}
+                onCancelRecording={() => {
+                  setAudioBlob(null);
+                  speechRecognition.reset();
+                  setMicError('');
+                }}
+                onSend={handleSend}
                 variant="float"
               />
               {micError && (
