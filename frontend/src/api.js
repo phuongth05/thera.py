@@ -40,15 +40,19 @@ export async function chat(audioBlob, text, token = null) {
  * @returns {Promise} - { happy: int, neutral: int, sad: int, angry: int }
  */
 export async function getEmotionStats(date, token) {
+  // Add Bearer prefix if not already present
+  const authHeader = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+  
   const response = await apiClient.get('/emotion-stats', {
     params: { date_param: date },
     headers: {
-      'Authorization': token,
+      'Authorization': authHeader,
     },
   });
 
   return response.data;
 }
+
 
 export default apiClient;
 

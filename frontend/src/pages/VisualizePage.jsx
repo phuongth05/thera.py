@@ -38,32 +38,76 @@ export const VisualizePage = () => {
         setLoading(true);
         setError(null);
 
-        // Get token from localStorage or Supabase session
+        // Get token from localStorage first (fastest)
         let token = localStorage.getItem("auth_token");
+        
+        // If no cached token, get from Supabase session
         if (!token) {
-          const { data } = await supabase.auth.getSession();
+          const { data, error: sessionError } = await supabase.auth.getSession();
+          if (sessionError) {
+            console.error("Session error:", sessionError);
+            setIsAuthenticated(false);
+            setStats({ happy: 0, neutral: 0, sad: 0, angry: 0 });
+            setLoading(false);
+            return;
+          }
+          
           token = data?.session?.access_token || null;
+          
+          // Cache the token for future requests
+          if (token) {
+            localStorage.setItem("auth_token", token);
+          }
         }
 
         if (!token) {
-          // Not authenticated — show empty stats and a notice
+          console.warn("No authentication token found");
           setIsAuthenticated(false);
           setStats({ happy: 0, neutral: 0, sad: 0, angry: 0 });
           setLoading(false);
           return;
         }
+
         setIsAuthenticated(true);
 
         // Format date as YYYY-MM-DD
         const dateStr = currentDate.toISOString().split("T")[0];
 
         // Fetch emotion stats
-        const data = await getEmotionStats(dateStr, token);
-        setStats(data);
+        try {
+          const data = await getEmotionStats(dateStr, token);
+          setStats(data);
+        } catch (apiErr) {
+          // If 401 (token invalid), clear cache and retry once
+          if (apiErr.response?.status === 401) {
+            console.warn("Token expired, clearing cache and retrying...");
+            localStorage.removeItem("auth_token");
+            
+            // Get fresh token from Supabase
+            const { data, error: sessionError } = await supabase.auth.getSession();
+            if (sessionError || !data?.session?.access_token) {
+              throw new Error("Session expired - please login again");
+            }
+            
+            const freshToken = data.session.access_token;
+            localStorage.setItem("auth_token", freshToken);
+            
+            // Retry with fresh token
+            const data2 = await getEmotionStats(dateStr, freshToken);
+            setStats(data2);
+          } else {
+            throw apiErr;
+          }
+        }
       } catch (err) {
         console.error("Failed to fetch emotion stats:", err);
-        setError("Không thể tải dữ liệu. Vui lòng thử lại.");
-        // Use default empty stats on error
+        
+        if (err.message?.includes("Session expired") || err.response?.status === 401) {
+          setError("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
+        } else {
+          setError("Không thể tải dữ liệu. Vui lòng thử lại.");
+        }
+        
         setStats({ happy: 0, neutral: 0, sad: 0, angry: 0 });
       } finally {
         setLoading(false);
