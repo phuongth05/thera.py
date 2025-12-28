@@ -1,0 +1,32 @@
+# Production requirements - Lightweight version
+# Web Framework
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Audio Processing (CPU only)
+soundfile
+librosa>=0.10.0
+
+# Deep Learning (CPU, no GPU)
+torch==2.0.1 --index-url https://download.pytorch.org/whl/cpu
+torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cpu
+
+# Models
+transformers>=4.30.0
+
+# Text-to-Speech
+gTTS
+groq
+
+# LLM
+google-generativeai
+
+# Database
+supabase
+
+# Configuration
+python-dotenv
+
+# Type hints
+pydantic

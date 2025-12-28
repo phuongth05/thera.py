@@ -1,1 +1,41 @@
 .env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Dependencies cache
+.pip-cache/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Model files (large)
+backend/model/*.pt
+backend/audio/
+
+# Logs
+*.log
+
+# Cache
+.cache/
+*.cache
