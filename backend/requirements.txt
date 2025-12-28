@@ -3,27 +3,20 @@ fastapi
 uvicorn[standard]
 python-multipart
 
-# Audio Processing
-soundfile
-torchaudio
-
-# Deep Learning
-torch
-transformers
-numpy
-
-# Text-to-Speech
-gTTS
-groq
-
-# LLM
-google-generativeai
+# Configuration
+python-dotenv
 
 # Database
 supabase
 
-# Configuration
-python-dotenv
+# Deep Learning / Audio
+torch
+transformers
+numpy
+soundfile
+
+# LLM Client
+groq
 
 # Type hints
 pydantic

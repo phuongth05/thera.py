@@ -2,7 +2,6 @@ import os
 import warnings
 import logging
 from groq import Groq
-import google.generativeai as genai
 from app.config import settings
 
 warnings.filterwarnings("ignore", category=FutureWarning, module="google.generativeai")
@@ -15,31 +14,6 @@ class ChatbotService:
         groq_api_key = os.getenv("GROQ_API_KEY")
         self.groq_model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
         self.groq_client = Groq(api_key=groq_api_key) if groq_api_key else None
-
-        # Gemini fallback (tùy chọn)
-        gemini_api_key = settings.GOOGLE_API_KEY or os.getenv("GEMINI_API_KEY")
-        self.gemini_enabled = bool(gemini_api_key)
-        if self.gemini_enabled:
-            genai.configure(api_key=gemini_api_key)
-            self.safety_settings = [
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
-                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
-            ]
-            self.generation_config = {
-                "temperature": settings.LLM_TEMPERATURE,
-                "max_output_tokens": settings.LLM_MAX_TOKENS,
-                "top_p": 0.95,
-            }
-            self.model_name = settings.GEMINI_MODEL
-        else:
-            self.safety_settings = []
-            self.generation_config = {}
-            self.model_name = ""
-
-        if not self.groq_client and not self.gemini_enabled:
-            raise RuntimeError("Missing both GROQ_API_KEY and GEMINI/GOOGLE_API_KEY")
 
     def get_reply(self, user_text: str, emotion: str = "neutral", recent_messages: list[dict] | None = None) -> str:
         try:

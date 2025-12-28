@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.DS_Store
+pytest_cache/
+
+# Don't copy local uploads into image
+audio/*
+
+# Logs
+*.log

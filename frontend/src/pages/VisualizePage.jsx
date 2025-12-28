@@ -176,6 +176,16 @@ export const VisualizePage = () => {
 
       <main className="relative flex-1 flex flex-col items-center bg-white transition-all duration-500 overflow-auto p-8">
         <div className="p-8 max-w-3xl mx-auto font-sans w-full">
+          <div className="mb-4">
+            <button
+              onClick={() => navigate("/chat")}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-[#1A1C1E] bg-gray-100 hover:bg-gray-200 rounded-md transition-colors duration-200"
+            >
+              <span aria-hidden>←</span>
+              Quay lại Chat
+            </button>
+          </div>
+
           <h2 className="text-xl font-bold mb-12 text-center text-[#1A1C1E]">
             Cùng xem hôm nay tâm trạng bạn thế nào
           </h2>
