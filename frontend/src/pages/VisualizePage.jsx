@@ -176,6 +176,7 @@ export const VisualizePage = () => {
 
       <main className="relative flex-1 flex flex-col items-center bg-white transition-all duration-500 overflow-auto p-8">
         <div className="p-8 max-w-3xl mx-auto font-sans w-full">
+
           <h2 className="text-xl font-bold mb-12 text-center text-[#1A1C1E]">
             Cùng xem hôm nay tâm trạng bạn thế nào
           </h2>
